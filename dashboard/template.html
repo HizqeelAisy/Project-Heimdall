@@ -165,6 +165,31 @@ a{color:var(--plan)}
   <div class="scroll"><svg id="seasonchart" style="min-width:760px" viewBox="0 0 1100 250" role="img" aria-label="Monthly peak without and with the plan"></svg></div>
 </section>
 
+<section class="panel" aria-labelledby="mdh">
+  <div class="monthhead">
+    <div><h2 id="mdh">Inside the model</h2><div class="note">The forecast above comes from a LightGBM model: <span id="mtrees">1,889</span> small decision trees, each trained to fix the mistakes of the trees before it. Choose how many trees to use and watch this day's forecast take shape.</div></div>
+  </div>
+  <div class="grid2">
+    <div style="min-width:0">
+      <div class="controls" id="stagebtns" role="group" aria-label="Number of trees"></div>
+      <div class="scroll"><svg id="modelchart" style="min-width:600px" viewBox="0 0 720 280" role="img" aria-label="Forecast built from a growing number of trees"></svg></div>
+      <div class="readout" id="mreadout"></div>
+    </div>
+    <div class="side">
+      <div><h3>What it relies on</h3><div class="bars" id="impbars"></div></div>
+      <div><h3>One tree, in plain words</h3>
+        <ol class="fine" style="padding-left:18px;margin:0">
+          <li>Was load at this hour last week below normal?</li>
+          <li>Was load yesterday, an hour earlier, below normal?</li>
+          <li>Was load at this hour two weeks ago below normal?</li>
+          <li>Is it a holiday? …and a few more questions, then a small adjustment.</li>
+        </ol>
+        <p class="note" style="margin:8px 0 0">The forecast is the sum of 1,889 such adjustments. Run it yourself in <span style="font-family:var(--f-data)">notebooks/show_me_the_model.ipynb</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="panel" aria-labelledby="eh">
   <h2 id="eh">The evidence, across 99 buildings</h2>
   <p class="note" style="margin-top:0">Commercial buildings from the Building Data Genome Project 2, in Austin and Tempe, the closest hot climates in open data. Trained on 2016, tuned on January to March 2017, tested on April to December 2017.</p>
@@ -178,7 +203,7 @@ a{color:var(--plan)}
     <li>Tariff rates are from vendor guides to TNB's July 2025 schedule. TNB states that maximum demand in the off-peak period is not charged.</li>
   </ul>
 </section>
-<p class="note" style="margin:0">Project Heimdall · Hackpire Lumina 2026 · Predictive Infrastructure &amp; Energy Analytics</p>
+<p class="note" style="margin:0">Project Heimdall · Team Hyperion · Hackpire Lumina 2026 · Predictive Infrastructure &amp; Energy Analytics</p>
 </div>
 
 <script>
@@ -360,7 +385,35 @@ function renderEvidence(){
   <div><h3>Plan quality</h3><div class="big">${Math.round(S.recall*100)}%</div><p class="note">of hours that would have raised the peak got a plan. ${Math.round(S.precision*100)}% of planned hours were truly needed; plans go out on about ${Math.round(S.alert_days)} days a month. Under the general tariff the same model cuts peaks only ${S.gen_cut.toFixed(1)}%, so Heimdall targets Time-of-Use buildings.</p></div>`;
 }
 
-function render(){ renderDay(); renderMonth(); renderSeason(); }
+
+let si = 4;
+function renderModel(){
+  const b = B[bi], M = D.model, i0 = di*24;
+  $('mtrees').textContent = M.trees.toLocaleString('en-US');
+  $('stagebtns').innerHTML = '<span class="note">Trees used:</span>' + M.stages.map((n,k)=>`<button data-k="${k}" class="${k===si?'primary':''}" aria-pressed="${k===si}">${n.toLocaleString('en-US')}</button>`).join('');
+  $('stagebtns').querySelectorAll('button').forEach(el=>el.addEventListener('click',()=>{ si=+el.dataset.k; renderModel(); }));
+  const H=[...Array(24).keys()];
+  const series = k => H.map(h=> k<4 ? b.stg[k][i0+h] : b.p50[i0+h]);
+  const act = H.map(h=>b.a[i0+h]), cur = series(si);
+  const all = [...act, ...series(0), ...cur].filter(ok);
+  const lo = Math.floor((Math.min(...all)-10)/20)*20, hi = Math.ceil((Math.max(...all)+10)/20)*20;
+  const W=720, Hh=280, l=50, r=14, t=28, bt=34, X = h => l + h*((W-l-r)/23), Y = v => t + (hi-v)/(hi-lo)*(Hh-t-bt);
+  const path = arr => { let s='', pen=false; arr.forEach((v,h)=>{ if(ok(v)){ s+=(pen?'L':'M')+X(h).toFixed(1)+' '+Y(v).toFixed(1)+' '; pen=true; } else pen=false; }); return s; };
+  let g='';
+  for (let k=0;k<=4;k++){ const v=lo+k*(hi-lo)/4; g += `<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`; }
+  g += `<text x="${l-8}" y="${t-14}" text-anchor="end">kW</text>`;
+  [0,3,6,9,12,15,18,21].forEach(h=> g += `<text x="${X(h)}" y="${Hh-12}" text-anchor="middle">${hr(h)}</text>`);
+  for (let k=0;k<si;k++) g += `<path d="${path(series(k))}" fill="none" stroke="var(--plan)" stroke-opacity="${0.12+0.1*k}" stroke-width="1.5"/>`;
+  g += `<path d="${path(act)}" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
+  g += `<path d="${path(cur)}" fill="none" stroke="var(--plan)" stroke-width="2.5" stroke-dasharray="6 4"/>`;
+  $('modelchart').innerHTML = g;
+  const pairs = H.filter(h=>ok(act[h])&&ok(cur[h]));
+  const err = pairs.reduce((s,h)=>s+Math.abs(cur[h]-act[h])/act[h],0)/pairs.length*100;
+  $('mreadout').textContent = `${fmtDayShort(di)} · ${M.stages[si].toLocaleString('en-US')} tree${M.stages[si]>1?'s':''} · average error ${err.toFixed(1)}%  (solid = actual, dashed = forecast)`;
+  const mx = Math.max(...M.imp.map(x=>x[1]));
+  $('impbars').innerHTML = M.imp.map(([k,v],j)=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${j<2?'us':''}" style="display:block;width:${v/mx*100}%"></span></span><span class="n">${v.toFixed(1)}%</span></div>`).join('');
+}
+function render(){ renderDay(); renderMonth(); renderSeason(); renderModel(); }
 function nextPlan(){ const b=B[bi]; for (let d=di+1; d<DAYS; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } for (let d=0; d<=di; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } }
 $('bsel').innerHTML = B.map((b,i)=>`<option value="${i}">${b.name} · ${b.site}</option>`).join('');
 $('bsel').addEventListener('change', e=>{ bi=+e.target.value; render(); });

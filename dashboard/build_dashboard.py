@@ -22,6 +22,31 @@ def arr(s):
     return [None if pd.isna(v) else int(round(v)) for v in s]
 
 
+IMP_NAMES = {"lag_168": "Same hour last week", "lag_24": "Same hour yesterday", "building_cat": "Which building",
+             "lag_336": "Same hour 2 weeks ago", "dow": "Day of week", "lag_25": "Yesterday, 1 hour earlier",
+             "temp_roll24": "Last 24h temperature", "temp_max_today": "Today\u2019s max temperature"}
+
+
+def add_model_stages(buildings, order):
+    """Forecasts from the first 1, 10, 50 and 200 trees, for the 'Inside the model' section."""
+    import sys
+    import lightgbm as lgb
+    sys.path.insert(0, str(ROOT / "pipeline"))
+    from features import make_features, feature_columns
+    scale = pd.Series(json.load(open(ROOT / "models" / "scale.json")))
+    data = pd.read_csv(ROOT / "pipeline" / "sample" / "demo_buildings.csv.gz", parse_dates=["timestamp"])
+    feat = make_features(data, 24, scale)
+    cols = feature_columns(feat)
+    model = lgb.Booster(model_file=str(ROOT / "models" / "model_h24_p50.txt"))
+    for b, rec in zip(order, buildings):
+        g = feat[(feat.building == b) & (feat.timestamp >= "2017-04-01")].sort_values("timestamp")
+        rec["stg"] = [[int(round(v)) for v in model.predict(g[cols], num_iteration=n) * scale[b]] for n in (1, 10, 50, 200)]
+    imp = pd.Series(model.feature_importance("gain"), index=model.feature_name())
+    imp = (imp / imp.sum() * 100).sort_values(ascending=False).head(8).round(1)
+    return dict(trees=model.num_trees(), inputs=len(model.feature_name()), stages=[1, 10, 50, 200, model.num_trees()],
+                imp=[[IMP_NAMES.get(k, k), float(v)] for k, v in imp.items()])
+
+
 def main():
     h = pd.read_csv(OUT / "dashboard_hourly.csv", parse_dates=["timestamp"])
     m = pd.read_csv(OUT / "dashboard_monthly.csv")
@@ -53,7 +78,8 @@ def main():
         precision=float(tou.precision), recall=float(tou.recall), alert_days=float(tou.alert_days_per_month),
         gen_cut=float(gen.avg_peak_reduction_pct), gen_perfect=float(gen.perfect_foresight_pct),
         demo_cut=summ["avg_peak_reduction_pct"], rate=97.06, buildings=99)
-    data = json.dumps(dict(start="2017-04-01", buildings=buildings, months=months, summary=summary),
+    model = add_model_stages(buildings, order)
+    data = json.dumps(dict(start="2017-04-01", buildings=buildings, months=months, summary=summary, model=model),
                       separators=(",", ":"))
     page = (Path(__file__).parent / "template.html").read_text().replace("/*DATA*/", data)
     head, body = page.split('<div class="wrap">', 1)

@@ -2,9 +2,11 @@
 
 **Sees tomorrow's electricity peak coming. Tells the building when to pre-cool.**
 
-Hackpire Lumina 2026 · Predictive Infrastructure & Energy Analytics
+Team Hyperion · Hackpire Lumina 2026 · Predictive Infrastructure & Energy Analytics
 
-**Live prototype:** open `index.html`, or the GitHub Pages link for this repository.
+**Live prototype:** https://hizqeelaisy.github.io/project-heimdall/
+
+**Show me the model:** [`notebooks/show_me_the_model.ipynb`](notebooks/show_me_the_model.ipynb) loads the trained model, prints one of its decision trees, forecasts a day it never saw, and reproduces the accuracy numbers. [Open in Colab](https://colab.research.google.com/github/HizqeelAisy/project-heimdall/blob/main/notebooks/show_me_the_model.ipynb) and choose Runtime › Run all.
 
 ## The problem
 
@@ -37,6 +39,8 @@ Total energy is unchanged in the backtest: load is shifted, not removed.
 | `pipeline/` | Data cleaning, features, LightGBM training, backtest, experiment loop |
 | `pipeline/outputs/` | Forecast accuracy, experiment results, dashboard data |
 | `models/` | Trained day-ahead and hour-ahead median models (LightGBM text format) |
+| `notebooks/` | `show_me_the_model.ipynb`: the model, running live |
+| `pipeline/sample/` | Cleaned hourly data for the six demo buildings (used by the notebook) |
 | `dashboard/` | Dashboard template and `build_dashboard.py` to rebuild `index.html` |
 | `docs/` | The Hackpire Lumina canvas |
 
