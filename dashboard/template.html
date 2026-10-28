@@ -1,0 +1,372 @@
+<title>Project Heimdall</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..100,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a facility manager's console. Header with building picker, then today's watch (chart + plan message), then the month, the season, and the evidence. */
+:root{
+  --bg:#F3F5F7; --surface:#FFFFFF; --ink:#132029; --muted:#5A6873; --line:#DBE1E6; --soft:#EBEFF2;
+  --beacon:#C9711A; --beacon-soft:#F7E6D3; --plan:#2463D1; --plan-soft:rgba(36,99,209,.13);
+  --good:#2C8A57; --good-soft:#DDF0E5; --bad:#C2412D; --bad-soft:#F7E0DB; --tou:rgba(201,113,26,.08);
+  --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif; --f-body:"Archivo", "Helvetica Neue", Arial, sans-serif; --f-data:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1318; --surface:#141C23; --ink:#E4EAEF; --muted:#8E9BA6; --line:#25313B; --soft:#1B252E;
+  --beacon:#EE9B48; --beacon-soft:#3A2814; --plan:#6E9DFF; --plan-soft:rgba(110,157,255,.16);
+  --good:#4FC285; --good-soft:#15301F; --bad:#F07A63; --bad-soft:#3A1C16; --tou:rgba(238,155,72,.08); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1318; --surface:#141C23; --ink:#E4EAEF; --muted:#8E9BA6; --line:#25313B; --soft:#1B252E;
+  --beacon:#EE9B48; --beacon-soft:#3A2814; --plan:#6E9DFF; --plan-soft:rgba(110,157,255,.16);
+  --good:#4FC285; --good-soft:#15301F; --bad:#F07A63; --bad-soft:#3A1C16; --tou:rgba(238,155,72,.08); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;gap:2px}
+.mark{font-family:var(--f-display);font-stretch:62%;font-weight:800;font-size:34px;letter-spacing:.06em;line-height:1}
+.mark span{color:var(--beacon)}
+.tag{color:var(--muted);font-size:14px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label.l{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover,select:hover{border-color:var(--muted)}
+button:focus-visible,select:focus-visible,.daycol:focus-visible{outline:2px solid var(--plan);outline-offset:2px}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.note{font-size:13px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+h2{font-family:var(--f-display);font-stretch:80%;font-weight:700;font-size:20px;margin:0 0 4px;text-wrap:balance}
+h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+.daybar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.datenav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.date{font-family:var(--f-display);font-stretch:80%;font-weight:700;font-size:24px;min-width:190px;text-align:center}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.plan{background:var(--beacon-soft);color:var(--beacon)}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.off{background:var(--soft);color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.kpi .k{font-size:12px;color:var(--muted);letter-spacing:.03em}
+.kpi .v{font-family:var(--f-data);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--muted)}
+.v.bad{color:var(--bad)} .v.good{color:var(--good)}
+.grid2{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:20px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+.legend i.band{height:10px;border:0;background:var(--plan-soft)}
+.legend i.tou{height:10px;border:0;background:var(--tou);outline:1px solid var(--beacon-soft)}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--f-data);font-size:11px;fill:var(--muted)}
+.readout{font-family:var(--f-data);font-size:13px;color:var(--muted);min-height:20px;font-variant-numeric:tabular-nums}
+.phone{background:var(--soft);border-radius:16px;padding:14px;display:grid;gap:8px}
+.from{font-size:12px;color:var(--muted)}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:12px 14px;font-size:14px;line-height:1.55;white-space:pre-line}
+.bubble b{font-weight:700}
+.side{display:grid;gap:16px;align-content:start}
+.list{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:14px}
+.list li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--soft);padding-bottom:6px}
+.list .num{font-family:var(--f-data);font-variant-numeric:tabular-nums;color:var(--bad);white-space:nowrap}
+.empty{color:var(--muted);font-size:14px}
+.monthhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.stats{display:flex;flex-wrap:wrap;gap:22px}
+.stat .v{font-family:var(--f-data);font-size:20px;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--muted)}
+.daycol{cursor:pointer}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ev{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.big{font-family:var(--f-display);font-stretch:70%;font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:150px minmax(0,1fr) 52px;gap:8px;align-items:center;font-size:13px}
+.track{height:14px;background:var(--soft);border-radius:3px;overflow:hidden}
+.fill{height:100%;background:var(--line)}
+.fill.us{background:var(--plan)}
+.bar .n{font-family:var(--f-data);text-align:right}
+.fine{font-size:13px;color:var(--muted);max-width:75ch}
+.fine li{margin-bottom:4px}
+a{color:var(--plan)}
+@media (max-width:900px){.grid2,.ev{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.date{min-width:0;font-size:20px}.bar{grid-template-columns:110px minmax(0,1fr) 46px}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="brand">
+    <div class="mark">HEIM<span>DALL</span></div>
+    <div class="tag">Sees tomorrow's peak coming. Tells you when to pre-cool.</div>
+  </div>
+  <div class="controls">
+    <div><label class="l" for="bsel">Building</label><select id="bsel"></select></div>
+  </div>
+</header>
+
+<p class="note" style="margin:0">Prototype replaying the April to December 2017 test period. The model never saw these days in training. Tariff: TNB medium voltage Time-of-Use, peak charge RM97.06 per kW on demand between 2pm and 10pm on weekdays.</p>
+
+<div class="grid2">
+  <section class="panel" aria-labelledby="dayh">
+    <div class="daybar">
+      <div class="datenav">
+        <button id="prev" aria-label="Previous day">◀</button>
+        <div class="date" id="dayh">–</div>
+        <button id="next" aria-label="Next day">▶</button>
+        <button id="nextplan" class="primary">Next plan day</button>
+      </div>
+      <span id="status" class="pill off">–</span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="legend">
+      <span><i style="border-color:var(--ink)"></i>Actual load</span>
+      <span><i class="band"></i>Forecast range (best guess to cautious)</span>
+      <span><i style="border-color:var(--plan)"></i>With Heimdall's plan</span>
+      <span><i style="border-color:var(--beacon);border-top-style:dashed"></i>Monthly target</span>
+      <span><i class="tou"></i>Counts toward peak charge</span>
+    </div>
+    <div class="scroll"><svg id="daychart" style="min-width:600px" viewBox="0 0 720 300" role="img" aria-label="Hourly load for the selected day"></svg></div>
+    <div class="readout" id="readout">Hover the chart to see each hour.</div>
+  </section>
+
+  <aside class="side">
+    <div class="panel">
+      <h3>Message sent the evening before</h3>
+      <div class="phone">
+        <div class="from">Heimdall · WhatsApp</div>
+        <div class="bubble" id="msg"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Waste check, this day</h3>
+      <ul class="list" id="wasteday"></ul>
+    </div>
+  </aside>
+</div>
+
+<section class="panel" aria-labelledby="mh">
+  <div class="monthhead">
+    <div><h2 id="mh">–</h2><div class="note">Each column is a day: highest 2pm to 10pm load without the plan and with it. Click a day to open it above.</div></div>
+    <div class="stats" id="mstats"></div>
+  </div>
+  <div class="scroll"><svg id="monthchart" style="min-width:760px" viewBox="0 0 1100 260" role="img" aria-label="Daily peak load for the month"></svg></div>
+  <div class="legend" style="margin-top:6px">
+    <span><i style="border-color:var(--muted)"></i>Daily peak without plan</span>
+    <span><i style="border-color:var(--plan)"></i>Daily peak with plan</span>
+    <span><i style="border-color:var(--beacon);border-top-style:dashed"></i>Target</span>
+  </div>
+  <h3 style="margin-top:16px">Waste flags this month</h3>
+  <ul class="list" id="wastemonth"></ul>
+</section>
+
+<section class="panel" aria-labelledby="sh">
+  <div class="monthhead">
+    <div><h2 id="sh">Season so far</h2><div class="note">Monthly peak charge is set by the single highest 2pm to 10pm hour. Without the plan, with the plan, and the ringgit kept.</div></div>
+    <div class="stats" id="sstats"></div>
+  </div>
+  <div class="scroll"><svg id="seasonchart" style="min-width:760px" viewBox="0 0 1100 250" role="img" aria-label="Monthly peak without and with the plan"></svg></div>
+</section>
+
+<section class="panel" aria-labelledby="eh">
+  <h2 id="eh">The evidence, across 99 buildings</h2>
+  <p class="note" style="margin-top:0">Commercial buildings from the Building Data Genome Project 2, in Austin and Tempe, the closest hot climates in open data. Trained on 2016, tuned on January to March 2017, tested on April to December 2017.</p>
+  <div class="ev" id="ev"></div>
+  <h3 style="margin-top:22px">What the prototype assumes</h3>
+  <ul class="fine">
+    <li>US buildings stand in for Malaysian ones. The model retrains on any building's meter data; the next step is a local pilot.</li>
+    <li>Hourly readings approximate TNB's 30-minute demand intervals.</li>
+    <li>Weather is treated as known a day ahead. Real forecasts carry some error.</li>
+    <li>Managers follow every plan, shifting up to 10% of load into the six hours before. Energy is moved, not removed.</li>
+    <li>Tariff rates are from vendor guides to TNB's July 2025 schedule. TNB states that maximum demand in the off-peak period is not charged.</li>
+  </ul>
+</section>
+<p class="note" style="margin:0">Project Heimdall · Hackpire Lumina 2026 · Predictive Infrastructure &amp; Energy Analytics</p>
+</div>
+
+<script>
+const D = /*DATA*/;
+const DAYS = 275, START = Date.UTC(2017,3,1);
+const B = D.buildings, S = D.summary;
+let bi = 0, di = 109;
+const $ = id => document.getElementById(id);
+const dt = i => new Date(START + i*864e5);
+const fmtDay = i => dt(i).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const fmtDayShort = i => dt(i).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+const monthKey = i => dt(i).toISOString().slice(0,7);
+const monthName = k => new Date(k+'-01T00:00:00Z').toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
+const hr = h => h===0||h===24?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
+const rm = v => 'RM' + Math.round(v).toLocaleString('en-US');
+const ok = v => v!==null && v!==undefined && !isNaN(v);
+const max = arr => { const f = arr.filter(ok); return f.length ? Math.max(...f) : null; };
+const isAlert = (b,i) => (b.fl[i]&1)>0, isCounted = (b,i) => (b.fl[i]&2)>0, isWaste = (b,i) => (b.fl[i]&4)>0;
+const ranges = hs => { const out=[]; hs.forEach(h=>{ const r=out[out.length-1]; if(r && r[1]===h) r[1]=h+1; else out.push([h,h+1]); }); return out.map(r=>`${hr(r[0])}–${hr(r[1])}`).join(', '); };
+
+function dayInfo(b, d){
+  const i0 = d*24, H=[...Array(24).keys()].map(h=>i0+h);
+  const counted = H.filter(i=>isCounted(b,i));
+  const alerts = H.filter(i=>isAlert(b,i)).map(i=>i-i0);
+  const pre = H.filter(i=>ok(b.plan[i])&&ok(b.a[i])&&b.plan[i]>b.a[i]+0.5).map(i=>i-i0);
+  const shed = alerts.map(h=>ok(b.a[i0+h])&&ok(b.plan[i0+h])?b.a[i0+h]-b.plan[i0+h]:0);
+  const add = pre.map(h=>b.plan[i0+h]-b.a[i0+h]);
+  const waste = H.filter(i=>isWaste(b,i)).map(i=>i-i0);
+  return { i0, H, counted, alerts, pre, waste,
+    target: b.tgt[i0+14] ?? b.tgt[i0],
+    fHigh: max(counted.map(i=>b.p95[i])),
+    peakA: max(counted.map(i=>b.a[i])),
+    peakP: max(counted.map(i=>b.plan[i])),
+    maxShed: shed.length?Math.max(...shed):0,
+    avgAdd: add.length?add.reduce((s,v)=>s+v,0)/add.length:0 };
+}
+
+function renderKPIs(b, x){
+  const m = D.months.find(r=>r.b===bi && r.month===monthKey(di));
+  const weekend = x.counted.length===0;
+  const k = [
+    ['Monthly target', ok(x.target)?`${x.target} kW`:'–', '10% below last month\'s peak', ''],
+    ['Cautious forecast, 2–10pm', weekend?'Off-peak':`${x.fHigh} kW`, weekend?'No peak charge today':(x.fHigh>x.target?'Above target':'Under target'), weekend?'':(x.fHigh>x.target?'bad':'good')],
+    ['Day\'s peak, 2–10pm', weekend?'–':(x.alerts.length?`${x.peakA} → ${x.peakP}`:`${x.peakA} kW`), weekend?'':(x.alerts.length?'kW without → with plan':'No plan needed'), ''],
+    ['Saved this month', m?rm(m.rm):'–', m?`Peak ${(m.before-m.after).toFixed(0)} kW lower`:'', m?'good':'']
+  ];
+  $('kpis').innerHTML = k.map(([kk,v,s,c])=>`<div class="kpi"><div class="k">${kk}</div><div class="v ${c}">${v}</div><div class="s">${s}</div></div>`).join('');
+  const st = $('status');
+  if (weekend){ st.className='pill off'; st.textContent='Off-peak day'; }
+  else if (x.alerts.length){ st.className='pill plan'; st.textContent=`Plan issued · ${x.alerts.length} hour${x.alerts.length>1?'s':''} at risk`; }
+  else { st.className='pill ok'; st.textContent='No action needed'; }
+}
+
+function renderMsg(b, x){
+  const day = fmtDayShort(di);
+  let t;
+  if (x.counted.length===0) t = `<b>${day}</b>\nWeekend or holiday: off-peak all day. Nothing today can set your peak charge. No action.`;
+  else if (!x.alerts.length) t = `<b>${day}: no plan needed</b>\nHighest expected load between 2pm and 10pm is ${x.fHigh} kW, under your ${x.target} kW target. Run as normal.`;
+  else {
+    t = `<b>${day}: peak risk</b>\nAfternoon load could reach <b>${x.fHigh} kW</b> against your ${x.target} kW target.\n\n`;
+    if (x.pre.length) t += `• <b>Pre-cool ${ranges(x.pre)}</b>: run chillers harder, about +${Math.round(x.avgAdd)} kW. Off-peak, so it can't set the peak.\n`;
+    t += `• <b>Ease back ${ranges(x.alerts)}</b>: raise setpoints or stagger chillers, up to −${Math.round(x.maxShed)} kW.\n\nExpected 2–10pm peak if followed: ${x.peakP} kW (without: ${x.peakA} kW).`;
+  }
+  $('msg').innerHTML = t;
+  const w = $('wasteday');
+  if (!x.waste.length) w.innerHTML = '<li class="empty">No unusual usage. Load stayed within 20% of the forecast.</li>';
+  else {
+    const over = x.waste.map(h=>(b.a[x.i0+h]/b.p50[x.i0+h]-1)*100);
+    w.innerHTML = `<li><span>${ranges(x.waste)}: load well above forecast. Check for equipment left on.</span><span class="num">+${Math.round(Math.max(...over))}%</span></li>`;
+  }
+}
+
+function renderDay(){
+  const b = B[bi], x = dayInfo(b, di);
+  $('dayh').textContent = fmtDay(di);
+  renderKPIs(b, x); renderMsg(b, x);
+  const W=720, Hh=300, l=50, r=14, t=28, bt=34;
+  const vals = x.H.flatMap(i=>[b.a[i],b.p50[i],b.p95[i],b.plan[i]]).concat([x.target]).filter(ok);
+  let lo = Math.floor((Math.min(...vals)-10)/20)*20, hi = Math.ceil((Math.max(...vals)+10)/20)*20;
+  const X = h => l + h*((W-l-r)/23), Y = v => t + (hi-v)/(hi-lo)*(Hh-t-bt);
+  const pts = (arr) => { let s='', pen=false; x.H.forEach((i,h)=>{ if(ok(arr[i])){ s += (pen?'L':'M')+X(h).toFixed(1)+' '+Y(arr[i]).toFixed(1)+' '; pen=true;} else pen=false; }); return s; };
+  let g = '';
+  if (x.counted.length){ const h0=x.counted[0]-x.i0, h1=x.counted[x.counted.length-1]-x.i0; g += `<rect x="${X(h0)-8}" y="${t}" width="${X(h1)-X(h0)+16}" height="${Hh-t-bt}" fill="var(--tou)"/>`; }
+  const step = (hi-lo)/4;
+  for (let k=0;k<=4;k++){ const v=lo+k*step; g += `<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`; }
+  g += `<text x="${l-8}" y="${t-14}" text-anchor="end">kW</text>`;
+  [0,3,6,9,12,15,18,21].forEach(h=> g += `<text x="${X(h)}" y="${Hh-12}" text-anchor="middle">${hr(h)}</text>`);
+  let band = x.H.map((i,h)=>ok(b.p95[i])?`${X(h)},${Y(b.p95[i])}`:null).filter(Boolean).join(' ') + ' ' + x.H.map((i,h)=>ok(b.p50[i])?`${X(h)},${Y(b.p50[i])}`:null).filter(Boolean).reverse().join(' ');
+  g += `<polygon points="${band}" fill="var(--plan-soft)"/>`;
+  g += `<path d="${pts(b.p50)}" fill="none" stroke="var(--plan)" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if (ok(x.target)) g += `<line x1="${l}" x2="${W-r}" y1="${Y(x.target)}" y2="${Y(x.target)}" stroke="var(--beacon)" stroke-width="1.5" stroke-dasharray="7 5"/><text x="${l+6}" y="${Y(x.target)-6}" style="fill:var(--beacon)">target ${x.target}</text>`;
+  g += `<path d="${pts(b.a)}" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
+  if (x.alerts.length) g += `<path d="${pts(b.plan)}" fill="none" stroke="var(--plan)" stroke-width="2.5"/>`;
+  x.alerts.forEach(h=> g += `<rect x="${X(h)-6}" y="${Hh-bt+6}" width="12" height="5" rx="1" fill="var(--beacon)"/>`);
+  g += `<line id="hv" x1="0" x2="0" y1="${t}" y2="${Hh-bt}" stroke="var(--muted)" stroke-opacity="0" />`;
+  g += `<rect id="hov" x="${l}" y="${t}" width="${W-l-r}" height="${Hh-t-bt}" fill="transparent"/>`;
+  const svg = $('daychart'); svg.innerHTML = g;
+  const hov = svg.querySelector('#hov'), hv = svg.querySelector('#hv');
+  const show = e => { const pt = svg.getBoundingClientRect(); const sx = (e.clientX-pt.left)/pt.width*W; const h = Math.max(0,Math.min(23,Math.round((sx-l)/((W-l-r)/23)))); const i=x.i0+h;
+    hv.setAttribute('x1',X(h)); hv.setAttribute('x2',X(h)); hv.setAttribute('stroke-opacity','.6');
+    const parts=[`${hr(h)}`, `actual ${ok(b.a[i])?b.a[i]:'–'} kW`, `best guess ${b.p50[i]}`, `cautious ${b.p95[i]}`];
+    if (x.alerts.length) parts.push(`with plan ${ok(b.plan[i])?b.plan[i]:'–'}`);
+    parts.push(isCounted(b,i)?'peak window':'off-peak'); if(isAlert(b,i)) parts.push('▲ plan hour');
+    $('readout').textContent = parts.join('  ·  '); };
+  hov.addEventListener('mousemove', show); hov.addEventListener('touchstart', e=>show(e.touches[0]), {passive:true});
+  hov.addEventListener('mouseleave', ()=>{ hv.setAttribute('stroke-opacity','0'); $('readout').textContent='Hover the chart to see each hour.'; });
+}
+
+function renderMonth(){
+  const b = B[bi], mk = monthKey(di);
+  const days = [...Array(DAYS).keys()].filter(d=>monthKey(d)===mk);
+  const info = days.map(d=>({d, ...dayInfo(b,d)}));
+  const m = D.months.find(r=>r.b===bi && r.month===mk);
+  $('mh').textContent = `${monthName(mk)} · ${b.name}, ${b.site}`;
+  const planDays = info.filter(x=>x.alerts.length).length;
+  const wasteH = info.reduce((s,x)=>s+x.waste.length,0);
+  $('mstats').innerHTML = m ? [
+    ['Peak without plan', `${m.before.toFixed(0)} kW`], ['Peak with plan', `${m.after.toFixed(0)} kW`], ['Plan days', planDays], ['Saved', rm(m.rm)]
+  ].map(([k,v])=>`<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('') : '';
+  const W=1100, Hh=260, l=50, r=14, t=28, bt=34, n=days.length, cw=(W-l-r)/n;
+  const vals = info.flatMap(x=>[x.peakA,x.peakP,x.target]).filter(ok);
+  const lo = Math.floor((Math.min(...vals)-10)/20)*20, hi = Math.ceil((Math.max(...vals)+10)/20)*20;
+  const X = k => l + cw*(k+.5), Y = v => t + (hi-v)/(hi-lo)*(Hh-t-bt);
+  let g='';
+  for (let k=0;k<=4;k++){ const v=lo+k*(hi-lo)/4; g += `<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`; }
+  g += `<text x="${l-8}" y="${t-14}" text-anchor="end">kW</text>`;
+  let tg=''; info.forEach((x,k)=>{ if(ok(x.target)) tg += (tg?'L':'M')+(l+cw*k)+' '+Y(x.target)+' L'+(l+cw*(k+1))+' '+Y(x.target)+' '; });
+  g += `<path d="${tg}" fill="none" stroke="var(--beacon)" stroke-width="1.5" stroke-dasharray="7 5"/>`;
+  info.forEach((x,k)=>{
+    const sel = x.d===di;
+    g += `<g class="daycol" data-d="${x.d}" tabindex="0" role="button" aria-label="${fmtDay(x.d)}"><rect x="${l+cw*k+1}" y="${t}" width="${cw-2}" height="${Hh-t-bt}" fill="${sel?'var(--soft)':'transparent'}" rx="3"/>`;
+    if (ok(x.peakA)){
+      if (x.alerts.length && ok(x.peakP)) g += `<line x1="${X(k)}" x2="${X(k)}" y1="${Y(x.peakA)}" y2="${Y(x.peakP)}" stroke="var(--line)" stroke-width="2"/>`;
+      g += `<circle cx="${X(k)}" cy="${Y(x.peakA)}" r="4" fill="var(--muted)"><title>${fmtDayShort(x.d)}: ${x.peakA} kW without plan</title></circle>`;
+      if (x.alerts.length && ok(x.peakP)) g += `<circle cx="${X(k)}" cy="${Y(x.peakP)}" r="4.5" fill="var(--plan)"><title>${fmtDayShort(x.d)}: ${x.peakP} kW with plan</title></circle>`;
+    }
+    const dn = dt(x.d).getUTCDate(); g += `<text x="${X(k)}" y="${Hh-12}" text-anchor="middle" style="${sel?'fill:var(--ink);font-weight:600':''}">${dn}</text>`;
+    if (x.waste.length) g += `<circle cx="${X(k)}" cy="${Hh-bt+6}" r="2.5" fill="var(--bad)"><title>Waste flag</title></circle>`;
+    g += `</g>`;
+  });
+  const svg=$('monthchart'); svg.innerHTML=g;
+  svg.querySelectorAll('.daycol').forEach(el=>{ const go=()=>{ di=+el.dataset.d; render(); }; el.addEventListener('click',go); el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();go();} }); });
+  const wl = info.filter(x=>x.waste.length);
+  $('wastemonth').innerHTML = wl.length ? wl.map(x=>{ const over=x.waste.map(h=>(b.a[x.i0+h]/b.p50[x.i0+h]-1)*100); return `<li><span>${fmtDayShort(x.d)}, ${ranges(x.waste)}</span><span class="num">+${Math.round(Math.max(...over))}% above forecast</span></li>`; }).join('') : '<li class="empty">No waste flags this month.</li>';
+}
+
+function renderSeason(){
+  const ms = D.months.filter(r=>r.b===bi);
+  const total = ms.reduce((s,r)=>s+r.rm,0), avg = ms.reduce((s,r)=>s+r.before-r.after,0)/ms.length;
+  const pct = ms.reduce((s,r)=>s+(r.before-r.after)/r.before,0)/ms.length*100;
+  $('sstats').innerHTML = [['Total kept, Apr–Dec', rm(total)], ['Average peak cut', `${avg.toFixed(0)} kW (${pct.toFixed(1)}%)`], ['Months with a lower peak', `${ms.filter(r=>r.after<r.before).length} of ${ms.length}`]].map(([k,v])=>`<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+  const W=1100, Hh=250, l=50, r=14, t=24, bt=34, n=ms.length, cw=(W-l-r)/n;
+  const vals = ms.flatMap(r=>[r.before,r.after]);
+  const lo = Math.floor((Math.min(...vals)-20)/20)*20, hi = Math.ceil((Math.max(...vals)+20)/20)*20;
+  const X = k => l + cw*(k+.5), Y = v => t + (hi-v)/(hi-lo)*(Hh-t-bt);
+  let g='';
+  for (let k=0;k<=4;k++){ const v=lo+k*(hi-lo)/4; g += `<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`; }
+  g += `<text x="${l-8}" y="${t-8}" text-anchor="end">kW</text>`;
+  const cur = monthKey(di);
+  ms.forEach((r,k)=>{
+    const sel = r.month===cur;
+    if (sel) g += `<rect x="${l+cw*k+2}" y="${t}" width="${cw-4}" height="${Hh-t-bt}" fill="var(--soft)" rx="4"/>`;
+    g += `<line x1="${X(k)}" x2="${X(k)}" y1="${Y(r.before)}" y2="${Y(r.after)}" stroke="var(--line)" stroke-width="3"/>`;
+    g += `<circle cx="${X(k)}" cy="${Y(r.before)}" r="6" fill="var(--muted)"><title>${r.month}: ${r.before} kW without plan</title></circle>`;
+    g += `<circle cx="${X(k)}" cy="${Y(r.after)}" r="6.5" fill="var(--plan)"><title>${r.month}: ${r.after} kW with plan</title></circle>`;
+    g += `<text x="${X(k)+12}" y="${(Y(r.before)+Y(r.after))/2+4}" style="fill:var(--good)">${rm(r.rm)}</text>`;
+    g += `<text x="${X(k)}" y="${Hh-12}" text-anchor="middle" style="${sel?'fill:var(--ink);font-weight:600':''}">${monthName(r.month).split(' ')[0].slice(0,3)}</text>`;
+  });
+  $('seasonchart').innerHTML = g;
+}
+
+function renderEvidence(){
+  const err = [['Same hour last week', S.mape_naive, false], ['Heimdall, day ahead', S.mape_day, true], ['Heimdall, hour ahead', S.mape_hour, true]];
+  const mx = Math.max(...err.map(e=>e[1]));
+  const cut = [['General tariff', S.gen_cut], ['Time-of-Use tariff', S.all_cut]];
+  $('ev').innerHTML = `
+  <div><h3>Peak cut, Time-of-Use</h3><div class="big">${S.all_cut.toFixed(1)}%</div><p class="note">Average lower monthly peak across ${S.buildings} buildings, about ${rm(S.all_rm)} per building per month. Perfect foresight under the same plan rules: ${S.all_perfect.toFixed(1)}%.</p></div>
+  <div><h3>Forecast error (lower is better)</h3><div class="bars">${err.map(([k,v,us])=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${us?'us':''}" style="display:block;width:${v/mx*100}%"></span></span><span class="n">${v.toFixed(1)}%</span></div>`).join('')}</div><p class="note">Average hourly error on unseen months. Day-ahead is ${Math.round((1-S.mape_day/S.mape_naive)*100)}% more accurate than the last-week shortcut.</p></div>
+  <div><h3>Plan quality</h3><div class="big">${Math.round(S.recall*100)}%</div><p class="note">of hours that would have raised the peak got a plan. ${Math.round(S.precision*100)}% of planned hours were truly needed; plans go out on about ${Math.round(S.alert_days)} days a month. Under the general tariff the same model cuts peaks only ${S.gen_cut.toFixed(1)}%, so Heimdall targets Time-of-Use buildings.</p></div>`;
+}
+
+function render(){ renderDay(); renderMonth(); renderSeason(); }
+function nextPlan(){ const b=B[bi]; for (let d=di+1; d<DAYS; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } for (let d=0; d<=di; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } }
+$('bsel').innerHTML = B.map((b,i)=>`<option value="${i}">${b.name} · ${b.site}</option>`).join('');
+$('bsel').addEventListener('change', e=>{ bi=+e.target.value; render(); });
+$('prev').addEventListener('click', ()=>{ di=Math.max(0,di-1); render(); });
+$('next').addEventListener('click', ()=>{ di=Math.min(DAYS-1,di+1); render(); });
+$('nextplan').addEventListener('click', nextPlan);
+document.addEventListener('keydown', e=>{ if(e.target.tagName==='SELECT') return; if(e.key==='ArrowLeft'){ di=Math.max(0,di-1); render(); } if(e.key==='ArrowRight'){ di=Math.min(DAYS-1,di+1); render(); } });
+renderEvidence(); render();
+</script>

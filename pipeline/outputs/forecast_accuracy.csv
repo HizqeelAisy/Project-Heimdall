@@ -1,0 +1,17 @@
+horizon_h,group,model_mape,naive_last_week_mape,p90_coverage,rows
+24,all buildings,6.12,8.64,0.88,639615
+24,demo buildings,3.82,5.28,0.903,38874
+24,Fox_office_Alice,2.24,3.34,0.892,6600
+24,Fox_education_Wendell,1.53,2.46,0.9,6600
+24,Fox_assembly_Johnnie,9.6,11.85,0.91,6600
+24,Bull_office_Lilla,2.71,4.46,0.879,6372
+24,Bull_education_Arthur,3.99,5.35,0.91,6351
+24,Bull_public_Hyun,2.81,4.17,0.93,6351
+1,all buildings,3.5,8.63,0.871,639337
+1,demo buildings,2.33,5.28,0.89,38865
+1,Fox_office_Alice,1.33,3.34,0.892,6600
+1,Fox_education_Wendell,0.92,2.46,0.874,6600
+1,Fox_assembly_Johnnie,5.52,11.85,0.897,6600
+1,Bull_office_Lilla,1.75,4.46,0.899,6369
+1,Bull_education_Arthur,3.15,5.35,0.877,6348
+1,Bull_public_Hyun,1.25,4.17,0.903,6348

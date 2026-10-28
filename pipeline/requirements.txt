@@ -1,0 +1,4 @@
+pandas>=2.0
+pyarrow
+lightgbm>=4.0
+numpy

@@ -1,0 +1,35 @@
+{
+  "settings": {
+    "tariff": "tou",
+    "quantile": 0.95,
+    "flex_fraction": 0.1,
+    "target_cut": 0.1,
+    "md_rate_rm_per_kw": 97.06
+  },
+  "test_period": "Apr-Dec 2017",
+  "buildings": [
+    "Fox_office_Alice",
+    "Fox_education_Wendell",
+    "Fox_assembly_Johnnie",
+    "Bull_office_Lilla",
+    "Bull_education_Arthur",
+    "Bull_public_Hyun"
+  ],
+  "day_ahead_mape_pct": 3.82,
+  "naive_last_week_mape_pct": 5.28,
+  "building_months": 54.0,
+  "avg_peak_reduction_kw": 24.7,
+  "avg_peak_reduction_pct": 4.68,
+  "rm_saved_per_building_month": 2397.0,
+  "alert_hours_per_month": 92.9,
+  "alert_days_per_month": 18.9,
+  "precision": 0.56,
+  "recall": 0.991,
+  "waste_hours_per_building_month": 3.7,
+  "caveats": [
+    "US buildings in hot climates stand in for Malaysian ones",
+    "hourly data approximates TNB's 30-minute intervals",
+    "weather treated as perfectly forecast",
+    "assumes managers act on every alert; RM uses vendor-reported TNB MV rates"
+  ]
+}
