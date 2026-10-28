@@ -50,34 +50,22 @@ def add_model_stages(buildings, order):
 def main():
     h = pd.read_csv(OUT / "dashboard_hourly.csv", parse_dates=["timestamp"])
     m = pd.read_csv(OUT / "dashboard_monthly.csv")
-    acc = pd.read_csv(OUT / "forecast_accuracy.csv").set_index(["horizon_h", "group"])
-    exp = pd.read_csv(OUT / "experiments_all.csv")
     summ = json.load(open(OUT / "summary.json"))
     order = list(NAMES)
     buildings = []
     for b in order:
         g = h[h.building == b].sort_values("timestamp")
-        fl = (g.alert.astype(int) + g.counts_toward_peak.astype(int) * 2
-              + g.waste_flag.fillna(False).astype(int) * 4).tolist()
+        fl = (g.routine_hour.astype(int) + g.counts_toward_peak.astype(int) * 2
+              + g.waste_flag.fillna(False).astype(int) * 4 + g.boost_hour.astype(int) * 8).tolist()
         n, s, t = NAMES[b]
         buildings.append(dict(id=b, name=n, site=s, type=t, a=arr(g.actual_kw), p50=arr(g.forecast_kw),
-                              p95=arr(g.forecast_high_kw), plan=arr(g.kw_if_alerts_followed),
+                              p95=arr(g.forecast_high_kw), plan=arr(g.kw_if_plan_followed),
                               tgt=arr(g.target_kw), fl=fl))
     months = [dict(b=order.index(r.building), month=r.month, before=round(r.md_baseline_kw, 1),
-                   after=round(r.md_with_alerts_kw, 1), rm=int(r.rm_saved), alertDays=int(r.alert_days),
+                   after=round(r.md_with_plan_kw, 1), rm=int(round(r.net_rm)), boostDays=int(r.boost_days),
                    wasteH=int(r.waste_hours)) for r in m.itertuples()]
-    pick = lambda tariff: exp[(exp.tariff == tariff) & (exp["quantile"] == "p95") &
-                              (exp.flex == 0.10) & (exp.target_cut == 0.10)].iloc[0]
-    tou, gen = pick("tou"), pick("general")
-    summary = dict(
-        mape_day=float(acc.loc[(24, "all buildings"), "model_mape"]),
-        mape_hour=float(acc.loc[(1, "all buildings"), "model_mape"]),
-        mape_naive=float(acc.loc[(24, "all buildings"), "naive_last_week_mape"]),
-        all_cut=float(tou.avg_peak_reduction_pct), all_perfect=float(tou.perfect_foresight_pct),
-        all_rm=int(tou.rm_saved_per_building_month), all_kw=float(tou.avg_peak_reduction_kw),
-        precision=float(tou.precision), recall=float(tou.recall), alert_days=float(tou.alert_days_per_month),
-        gen_cut=float(gen.avg_peak_reduction_pct), gen_perfect=float(gen.perfect_foresight_pct),
-        demo_cut=summ["avg_peak_reduction_pct"], rate=97.06, buildings=99)
+    summary = dict(mape_day=summ["day_ahead_mape_pct"], mape_hour=summ["hour_ahead_mape_pct"],
+                   mape_naive=summ["shortcut_mape_pct"], strategies=summ["strategies"], buildings=summ["buildings"])
     model = add_model_stages(buildings, order)
     data = json.dumps(dict(start="2017-04-01", buildings=buildings, months=months, summary=summary, model=model),
                       separators=(",", ":"))

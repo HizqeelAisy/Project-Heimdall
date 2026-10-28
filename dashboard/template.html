@@ -111,7 +111,7 @@ a{color:var(--plan)}
         <button id="prev" aria-label="Previous day">◀</button>
         <div class="date" id="dayh">–</div>
         <button id="next" aria-label="Next day">▶</button>
-        <button id="nextplan" class="primary">Next plan day</button>
+        <button id="nextplan" class="primary">Next boost day</button>
       </div>
       <span id="status" class="pill off">–</span>
     </div>
@@ -199,7 +199,8 @@ a{color:var(--plan)}
     <li>US buildings stand in for Malaysian ones. The model retrains on any building's meter data; the next step is a local pilot.</li>
     <li>Hourly readings approximate TNB's 30-minute demand intervals.</li>
     <li>Weather is treated as known a day ahead. Real forecasts carry some error.</li>
-    <li>Managers follow every plan, shifting up to 10% of load into the six hours before. Energy is moved, not removed.</li>
+    <li>Managers follow every plan. In an eased hour chiller load drops by 10%, moved into the six hours before; pre-cooling wastes 15% extra energy, charged at the off-peak rate. No comfort limits are modelled.</li>
+    <li>Under the general tariff, where every hour counts, there is no off-peak window to shift into, so Heimdall is built for Time-of-Use buildings.</li>
     <li>Tariff rates are from vendor guides to TNB's July 2025 schedule. TNB states that maximum demand in the off-peak period is not charged.</li>
   </ul>
 </section>
@@ -221,7 +222,7 @@ const hr = h => h===0||h===24?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm';
 const rm = v => 'RM' + Math.round(v).toLocaleString('en-US');
 const ok = v => v!==null && v!==undefined && !isNaN(v);
 const max = arr => { const f = arr.filter(ok); return f.length ? Math.max(...f) : null; };
-const isAlert = (b,i) => (b.fl[i]&1)>0, isCounted = (b,i) => (b.fl[i]&2)>0, isWaste = (b,i) => (b.fl[i]&4)>0;
+const isAlert = (b,i) => (b.fl[i]&9)>0, isBoost = (b,i) => (b.fl[i]&8)>0, isCounted = (b,i) => (b.fl[i]&2)>0, isWaste = (b,i) => (b.fl[i]&4)>0;
 const ranges = hs => { const out=[]; hs.forEach(h=>{ const r=out[out.length-1]; if(r && r[1]===h) r[1]=h+1; else out.push([h,h+1]); }); return out.map(r=>`${hr(r[0])}–${hr(r[1])}`).join(', '); };
 
 function dayInfo(b, d){
@@ -232,7 +233,9 @@ function dayInfo(b, d){
   const shed = alerts.map(h=>ok(b.a[i0+h])&&ok(b.plan[i0+h])?b.a[i0+h]-b.plan[i0+h]:0);
   const add = pre.map(h=>b.plan[i0+h]-b.a[i0+h]);
   const waste = H.filter(i=>isWaste(b,i)).map(i=>i-i0);
-  return { i0, H, counted, alerts, pre, waste,
+  const boost = H.filter(i=>isBoost(b,i)).map(i=>i-i0);
+  const routine = alerts.filter(h=>!boost.includes(h));
+  return { i0, H, counted, alerts, pre, waste, boost, routine,
     target: b.tgt[i0+14] ?? b.tgt[i0],
     fHigh: max(counted.map(i=>b.p95[i])),
     peakA: max(counted.map(i=>b.a[i])),
@@ -247,25 +250,26 @@ function renderKPIs(b, x){
   const k = [
     ['Monthly target', ok(x.target)?`${x.target} kW`:'–', '10% below last month\'s peak', ''],
     ['Cautious forecast, 2–10pm', weekend?'Off-peak':`${x.fHigh} kW`, weekend?'No peak charge today':(x.fHigh>x.target?'Above target':'Under target'), weekend?'':(x.fHigh>x.target?'bad':'good')],
-    ['Day\'s peak, 2–10pm', weekend?'–':(x.alerts.length?`${x.peakA} → ${x.peakP}`:`${x.peakA} kW`), weekend?'':(x.alerts.length?'kW without → with plan':'No plan needed'), ''],
-    ['Saved this month', m?rm(m.rm):'–', m?`Peak ${(m.before-m.after).toFixed(0)} kW lower`:'', m?'good':'']
+    ['Day\'s peak, 2–10pm', weekend?'–':(x.alerts.length?`${x.peakA} → ${x.peakP}`:`${x.peakA} kW`), weekend?'':(x.alerts.length?'kW without → with plan':'No eased hours'), ''],
+    ['Saved this month', m?rm(m.rm):'–', m?`Peak ${(m.before-m.after).toFixed(0)} kW lower, after pre-cooling losses`:'', m?'good':'']
   ];
   $('kpis').innerHTML = k.map(([kk,v,s,c])=>`<div class="kpi"><div class="k">${kk}</div><div class="v ${c}">${v}</div><div class="s">${s}</div></div>`).join('');
   const st = $('status');
   if (weekend){ st.className='pill off'; st.textContent='Off-peak day'; }
-  else if (x.alerts.length){ st.className='pill plan'; st.textContent=`Plan issued · ${x.alerts.length} hour${x.alerts.length>1?'s':''} at risk`; }
-  else { st.className='pill ok'; st.textContent='No action needed'; }
+  else if (x.boost.length){ st.className='pill plan'; st.textContent=`Boost day · routine + ${x.boost.length} extra hour${x.boost.length>1?'s':''}`; }
+  else { st.className='pill ok'; st.textContent='Routine day'; }
 }
 
 function renderMsg(b, x){
   const day = fmtDayShort(di);
   let t;
   if (x.counted.length===0) t = `<b>${day}</b>\nWeekend or holiday: off-peak all day. Nothing today can set your peak charge. No action.`;
-  else if (!x.alerts.length) t = `<b>${day}: no plan needed</b>\nHighest expected load between 2pm and 10pm is ${x.fHigh} kW, under your ${x.target} kW target. Run as normal.`;
   else {
-    t = `<b>${day}: peak risk</b>\nAfternoon load could reach <b>${x.fHigh} kW</b> against your ${x.target} kW target.\n\n`;
+    t = x.boost.length ? `<b>${day}: high-risk afternoon</b>\nCautious forecast <b>${x.fHigh} kW</b> against your ${x.target} kW target.\n\n` : `<b>${day}: routine day</b>\nCautious forecast ${x.fHigh} kW, under your ${x.target} kW target.\n\n`;
     if (x.pre.length) t += `• <b>Pre-cool ${ranges(x.pre)}</b>: run chillers harder, about +${Math.round(x.avgAdd)} kW. Off-peak, so it can't set the peak.\n`;
-    t += `• <b>Ease back ${ranges(x.alerts)}</b>: raise setpoints or stagger chillers, up to −${Math.round(x.maxShed)} kW.\n\nExpected 2–10pm peak if followed: ${x.peakP} kW (without: ${x.peakA} kW).`;
+    if (x.routine.length) t += `• <b>Routine: ease back ${ranges(x.routine)}</b>: raise setpoints or stagger chillers.\n`;
+    if (x.boost.length) t += `• <b>Boost: also ease ${ranges(x.boost)}</b>, the riskiest hours left.\n`;
+    if (x.alerts.length) t += `\nExpected 2–10pm peak if followed: ${x.peakP} kW (without: ${x.peakA} kW).`;
   }
   $('msg').innerHTML = t;
   const w = $('wasteday');
@@ -297,7 +301,7 @@ function renderDay(){
   if (ok(x.target)) g += `<line x1="${l}" x2="${W-r}" y1="${Y(x.target)}" y2="${Y(x.target)}" stroke="var(--beacon)" stroke-width="1.5" stroke-dasharray="7 5"/><text x="${l+6}" y="${Y(x.target)-6}" style="fill:var(--beacon)">target ${x.target}</text>`;
   g += `<path d="${pts(b.a)}" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
   if (x.alerts.length) g += `<path d="${pts(b.plan)}" fill="none" stroke="var(--plan)" stroke-width="2.5"/>`;
-  x.alerts.forEach(h=> g += `<rect x="${X(h)-6}" y="${Hh-bt+6}" width="12" height="5" rx="1" fill="var(--beacon)"/>`);
+  x.alerts.forEach(h=> g += `<rect x="${X(h)-6}" y="${Hh-bt+6}" width="12" height="5" rx="1" fill="var(--beacon)" fill-opacity="${x.boost.includes(h)?1:0.4}"/>`);
   g += `<line id="hv" x1="0" x2="0" y1="${t}" y2="${Hh-bt}" stroke="var(--muted)" stroke-opacity="0" />`;
   g += `<rect id="hov" x="${l}" y="${t}" width="${W-l-r}" height="${Hh-t-bt}" fill="transparent"/>`;
   const svg = $('daychart'); svg.innerHTML = g;
@@ -306,7 +310,7 @@ function renderDay(){
     hv.setAttribute('x1',X(h)); hv.setAttribute('x2',X(h)); hv.setAttribute('stroke-opacity','.6');
     const parts=[`${hr(h)}`, `actual ${ok(b.a[i])?b.a[i]:'–'} kW`, `best guess ${b.p50[i]}`, `cautious ${b.p95[i]}`];
     if (x.alerts.length) parts.push(`with plan ${ok(b.plan[i])?b.plan[i]:'–'}`);
-    parts.push(isCounted(b,i)?'peak window':'off-peak'); if(isAlert(b,i)) parts.push('▲ plan hour');
+    parts.push(isCounted(b,i)?'peak window':'off-peak'); if(isBoost(b,i)) parts.push('▲ boost hour'); else if(isAlert(b,i)) parts.push('▲ routine hour');
     $('readout').textContent = parts.join('  ·  '); };
   hov.addEventListener('mousemove', show); hov.addEventListener('touchstart', e=>show(e.touches[0]), {passive:true});
   hov.addEventListener('mouseleave', ()=>{ hv.setAttribute('stroke-opacity','0'); $('readout').textContent='Hover the chart to see each hour.'; });
@@ -318,10 +322,10 @@ function renderMonth(){
   const info = days.map(d=>({d, ...dayInfo(b,d)}));
   const m = D.months.find(r=>r.b===bi && r.month===mk);
   $('mh').textContent = `${monthName(mk)} · ${b.name}, ${b.site}`;
-  const planDays = info.filter(x=>x.alerts.length).length;
+  const planDays = info.filter(x=>x.boost.length).length;
   const wasteH = info.reduce((s,x)=>s+x.waste.length,0);
   $('mstats').innerHTML = m ? [
-    ['Peak without plan', `${m.before.toFixed(0)} kW`], ['Peak with plan', `${m.after.toFixed(0)} kW`], ['Plan days', planDays], ['Saved', rm(m.rm)]
+    ['Peak without plan', `${m.before.toFixed(0)} kW`], ['Peak with plan', `${m.after.toFixed(0)} kW`], ['Boost days', planDays], ['Saved, net', rm(m.rm)]
   ].map(([k,v])=>`<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('') : '';
   const W=1100, Hh=260, l=50, r=14, t=28, bt=34, n=days.length, cw=(W-l-r)/n;
   const vals = info.flatMap(x=>[x.peakA,x.peakP,x.target]).filter(ok);
@@ -378,11 +382,13 @@ function renderSeason(){
 function renderEvidence(){
   const err = [['Same hour last week', S.mape_naive, false], ['Heimdall, day ahead', S.mape_day, true], ['Heimdall, hour ahead', S.mape_hour, true]];
   const mx = Math.max(...err.map(e=>e[1]));
-  const cut = [['General tariff', S.gen_cut], ['Time-of-Use tariff', S.all_cut]];
+  const st = S.strategies, H = st.heimdall, Rt = st.routine;
+  const strat = [['Daily routine only', Rt, false], ['Heimdall: routine + model boost', H, true], ['Routine + shortcut boost', st.heimdall_shortcut, false], ['Routine + 2 extra hours daily', st.routine_plus, false]];
+  const sm = Math.max(...strat.map(s=>s[1].net_rm));
   $('ev').innerHTML = `
-  <div><h3>Peak cut, Time-of-Use</h3><div class="big">${S.all_cut.toFixed(1)}%</div><p class="note">Average lower monthly peak across ${S.buildings} buildings, about ${rm(S.all_rm)} per building per month. Perfect foresight under the same plan rules: ${S.all_perfect.toFixed(1)}%.</p></div>
-  <div><h3>Forecast error (lower is better)</h3><div class="bars">${err.map(([k,v,us])=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${us?'us':''}" style="display:block;width:${v/mx*100}%"></span></span><span class="n">${v.toFixed(1)}%</span></div>`).join('')}</div><p class="note">Average hourly error on unseen months. Day-ahead is ${Math.round((1-S.mape_day/S.mape_naive)*100)}% more accurate than the last-week shortcut.</p></div>
-  <div><h3>Plan quality</h3><div class="big">${Math.round(S.recall*100)}%</div><p class="note">of hours that would have raised the peak got a plan. ${Math.round(S.precision*100)}% of planned hours were truly needed; plans go out on about ${Math.round(S.alert_days)} days a month. Under the general tariff the same model cuts peaks only ${S.gen_cut.toFixed(1)}%, so Heimdall targets Time-of-Use buildings.</p></div>`;
+  <div><h3>Heimdall's result</h3><div class="big">${rm(H.net_rm)}</div><p class="note">net saving per building per month, after pre-cooling losses, across ${S.buildings} buildings on Time-of-Use. Monthly peak ${H.peak_cut_pct.toFixed(1)}% lower, with ${Math.round(H.eased_hours)} eased hours a month.</p></div>
+  <div><h3>Why not just pre-cool every day?</h3><div class="bars">${strat.map(([k,v,us])=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${us?'us':''}" style="display:block;width:${v.net_rm/sm*100}%"></span></span><span class="n">${rm(v.net_rm)}</span></div>`).join('')}</div><p class="note">We tested it. The routine does most of the work. The model adds ${rm(H.net_rm-Rt.net_rm)} a month by calling extra effort on about ${Math.round(H.boost_days)} risky days, for ${Math.round(H.eased_hours-Rt.eased_hours)} extra eased hours. Doing the extra every day takes ${Math.round(st.routine_plus.eased_hours-Rt.eased_hours)} extra eased hours a month.</p></div>
+  <div><h3>Forecast error (lower is better)</h3><div class="bars">${err.map(([k,v,us])=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${us?'us':''}" style="display:block;width:${v/mx*100}%"></span></span><span class="n">${v.toFixed(1)}%</span></div>`).join('')}</div><p class="note">Average hourly error on unseen months. The day-ahead forecast cuts the shortcut's error by ${Math.round((1-S.mape_day/S.mape_naive)*100)}%.</p></div>`;
 }
 
 
@@ -414,7 +420,7 @@ function renderModel(){
   $('impbars').innerHTML = M.imp.map(([k,v],j)=>`<div class="bar"><span>${k}</span><span class="track"><span class="fill ${j<2?'us':''}" style="display:block;width:${v/mx*100}%"></span></span><span class="n">${v.toFixed(1)}%</span></div>`).join('');
 }
 function render(){ renderDay(); renderMonth(); renderSeason(); renderModel(); }
-function nextPlan(){ const b=B[bi]; for (let d=di+1; d<DAYS; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } for (let d=0; d<=di; d++){ if (dayInfo(b,d).alerts.length){ di=d; return render(); } } }
+function nextPlan(){ const b=B[bi]; for (let d=di+1; d<DAYS; d++){ if (dayInfo(b,d).boost.length){ di=d; return render(); } } for (let d=0; d<=di; d++){ if (dayInfo(b,d).boost.length){ di=d; return render(); } } }
 $('bsel').innerHTML = B.map((b,i)=>`<option value="${i}">${b.name} · ${b.site}</option>`).join('');
 $('bsel').addEventListener('change', e=>{ bi=+e.target.value; render(); });
 $('prev').addEventListener('click', ()=>{ di=Math.max(0,di-1); render(); });

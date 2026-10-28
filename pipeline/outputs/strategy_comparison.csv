@@ -1,0 +1,6 @@
+strategy,peak_cut_pct,peak_rm,loss_rm,net_rm,eased_hours,boost_days
+routine,4.16,1330.22,87.78,1242.44,63.39,0.0
+heimdall,5.58,1917.92,112.97,1804.95,78.04,9.48
+heimdall_shortcut,4.54,1474.13,93.78,1380.35,66.7,1.77
+routine_plus,6.4,2199.04,143.97,2055.07,106.07,21.43
+light,2.76,904.67,52.38,852.29,34.55,13.08

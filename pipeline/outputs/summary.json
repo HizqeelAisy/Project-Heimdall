@@ -1,35 +1,65 @@
 {
-  "settings": {
-    "tariff": "tou",
-    "quantile": 0.95,
-    "flex_fraction": 0.1,
+  "policy": {
+    "routine": "pre-cool and ease 2pm-5pm every weekday",
+    "boost": "up to 2 extra hours on days the cautious forecast breaks the target",
+    "flex": 0.1,
+    "loss": 0.15,
     "target_cut": 0.1,
     "md_rate_rm_per_kw": 97.06
   },
   "test_period": "Apr-Dec 2017",
-  "buildings": [
-    "Fox_office_Alice",
-    "Fox_education_Wendell",
-    "Fox_assembly_Johnnie",
-    "Bull_office_Lilla",
-    "Bull_education_Arthur",
-    "Bull_public_Hyun"
-  ],
-  "day_ahead_mape_pct": 3.82,
-  "naive_last_week_mape_pct": 5.28,
-  "building_months": 54.0,
-  "avg_peak_reduction_kw": 24.7,
-  "avg_peak_reduction_pct": 4.68,
-  "rm_saved_per_building_month": 2397.0,
-  "alert_hours_per_month": 92.9,
-  "alert_days_per_month": 18.9,
-  "precision": 0.56,
-  "recall": 0.991,
-  "waste_hours_per_building_month": 3.7,
+  "buildings": 99,
+  "day_ahead_mape_pct": 6.12,
+  "hour_ahead_mape_pct": 3.5,
+  "shortcut_mape_pct": 8.64,
+  "strategies": {
+    "routine": {
+      "peak_cut_pct": 4.16,
+      "peak_rm": 1330.22,
+      "loss_rm": 87.78,
+      "net_rm": 1242.44,
+      "eased_hours": 63.39,
+      "boost_days": 0.0
+    },
+    "heimdall": {
+      "peak_cut_pct": 5.58,
+      "peak_rm": 1917.92,
+      "loss_rm": 112.97,
+      "net_rm": 1804.95,
+      "eased_hours": 78.04,
+      "boost_days": 9.48
+    },
+    "heimdall_shortcut": {
+      "peak_cut_pct": 4.54,
+      "peak_rm": 1474.13,
+      "loss_rm": 93.78,
+      "net_rm": 1380.35,
+      "eased_hours": 66.7,
+      "boost_days": 1.77
+    },
+    "routine_plus": {
+      "peak_cut_pct": 6.4,
+      "peak_rm": 2199.04,
+      "loss_rm": 143.97,
+      "net_rm": 2055.07,
+      "eased_hours": 106.07,
+      "boost_days": 21.43
+    },
+    "light": {
+      "peak_cut_pct": 2.76,
+      "peak_rm": 904.67,
+      "loss_rm": 52.38,
+      "net_rm": 852.29,
+      "eased_hours": 34.55,
+      "boost_days": 13.08
+    }
+  },
+  "demo_buildings_net_rm": 3073.0433605318517,
   "caveats": [
     "US buildings in hot climates stand in for Malaysian ones",
     "hourly data approximates TNB's 30-minute intervals",
     "weather treated as perfectly forecast",
-    "assumes managers act on every alert; RM uses vendor-reported TNB MV rates"
+    "assumes the plan is followed every day",
+    "simplified pre-cooling physics: 10% of an hour's load, 15% energy loss, no comfort limits"
   ]
 }
