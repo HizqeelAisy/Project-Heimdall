@@ -4,9 +4,9 @@
 
 Team Hyperion · Hackpire Lumina 2026 · Predictive Infrastructure & Energy Analytics
 
-**Live prototype:** https://hizqeelaisy.github.io/project-heimdall/
+**Live prototype:** https://hizqeelaisy.github.io/Project-Heimdall/
 
-**Show me the model:** [`notebooks/show_me_the_model.ipynb`](notebooks/show_me_the_model.ipynb) loads the trained model, prints one of its decision trees, forecasts a day it never saw, and reproduces the accuracy numbers. [Open in Colab](https://colab.research.google.com/github/HizqeelAisy/project-heimdall/blob/main/notebooks/show_me_the_model.ipynb) and choose Runtime › Run all.
+**Show me the model:** [`notebooks/show_me_the_model.ipynb`](notebooks/show_me_the_model.ipynb) loads the trained model, prints one of its decision trees, forecasts a day it never saw, and reproduces the accuracy numbers. [Open in Colab](https://colab.research.google.com/github/HizqeelAisy/Project-Heimdall/blob/main/notebooks/show_me_the_model.ipynb) and choose Runtime › Run all.
 
 ## The problem
 

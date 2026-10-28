@@ -19,9 +19,9 @@ This notebook loads Heimdall's **trained forecast model** and runs it live:
 Run all cells (Runtime › Run all in Colab). It takes under a minute."""),
 code("""# Setup: works locally (inside the repo) or in Google Colab
 import os, sys, json
-if 'google.colab' in sys.modules and not os.path.exists('project-heimdall'):
-    !git clone -q https://github.com/HizqeelAisy/project-heimdall
-    os.chdir('project-heimdall')
+if 'google.colab' in sys.modules and not os.path.exists('Project-Heimdall'):
+    !git clone -q https://github.com/HizqeelAisy/Project-Heimdall
+    os.chdir('Project-Heimdall')
 elif os.path.basename(os.getcwd()) == 'notebooks':
     os.chdir('..')
 sys.path.insert(0, 'pipeline')
